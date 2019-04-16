@@ -27,8 +27,8 @@ Example:
 Cr9	Cre_09.g388750.t1	2824325	2830821
 Cr9	Cre_09.g388763.t1	3373489	3377999
 
-3. window size (integer) -window size in number of genes 
-4. minimum number of orthologs (integer) -filer for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 
+3. window size (integer) -window size in number of genes (Recommended <10)
+4. minimum number of orthologs (integer) -filter for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 
 
 OPTIONS:
 
@@ -45,5 +45,5 @@ Outputs:
 4. File.ranked.uniq.txt
 
 Optional outputs
-5. File.clean.txt -filters for genes with greater than the minimum number of orthologs ***Need to fix ***
+5. File.clean.txt -filters for genes with greater than the minimum number of orthologs (Cautions: Need to fix)
 6. File.stats.txt

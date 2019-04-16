@@ -3,7 +3,7 @@ README gene_neighborhoods.pl
 
 Usage:
 ```
-perl gene_neighborhoods.pl <OrthoMCL_output> <gff> <window_size> <min_num_orthologs>
+"USAGE: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--stats] 
 ```
 
 Finds gene neighborhoods of proximal orthologous gene pairs conserved in a minimum number of species
@@ -30,6 +30,11 @@ Cr9	Cre_09.g388763.t1	3373489	3377999
 3. window size (integer) -window size in number of genes 
 4. minimum number of orthologs (integer) -filer for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 
 
+OPTIONS:
+
+--stats
+  keeps only proximal orthologous gene pairs with greater than the minimum number of homologs and reports statistics. 
+
 ---------------------------------------------------------------------------------
 
 Outputs:
@@ -37,4 +42,8 @@ Outputs:
 1. File.txt -full output of sliding windows
 2. File.merged.txt -merged windows
 3. File.ranked.txt -gene neighborhoods ranked giving weight to genes from smaller orthologous groups
-4. File.ranked.uniq.txt 
+4. File.ranked.uniq.txt
+
+Optional outputs
+5. File.clean.txt -filters for genes with greater than the minimum number of orthologs ***Need to fix ***
+6. File.stats.txt

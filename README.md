@@ -31,8 +31,11 @@ Cr9	Cre_09.g388763.t1	3373489	3377999
 4. minimum number of orthologs (integer) -filter for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 
 
 OPTIONS:
+
 --methods
+
 default: find clusters based on minimum number of orthologous proximal genes
+
 cooccur:find genes that always clustered in the species in which they are present (can lower minimum number of orthologs)
 
 --stats
@@ -48,5 +51,7 @@ Outputs:
 4. File.ranked.uniq.txt
 
 Optional outputs
+
 5. File.clean.txt -filters for genes with greater than the minimum number of orthologs (Cautions: Need to fix)
+
 6. File.stats.txt

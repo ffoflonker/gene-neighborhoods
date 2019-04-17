@@ -2,13 +2,11 @@ To Do:
 
 1. clean_stats -find way to remove orthologs without proximal pair > min ortholog number
 
-2. add Cooccuring function to filter for cooccuring proximal gene pairs
-
-3. add Select function to select for neighborhoods containing certain species
+2. add Select function to select for neighborhoods containing certain species
 
 OUTPUTS
 
-4. tabular output with species as the columns
+3. tabular output with species as the columns
 
-5. automatically generate phylogenetic profiles (clustering,present, absent)
+4. automatically generate phylogenetic profiles (clustering,present, absent)
 

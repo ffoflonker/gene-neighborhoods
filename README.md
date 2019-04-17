@@ -25,9 +25,11 @@ OG0005367: Bathy_XP_007510307.1 Cre_10.g448950.t1 Csub_66649 Czo_Cz13g08110.t1 K
 Example:
 
 Cr9	Cre_09.g388750.t1	2824325	2830821
+
 Cr9	Cre_09.g388763.t1	3373489	3377999
 
 3. window size (integer) -window size in number of genes (Recommended <10)
+
 4. minimum number of orthologs (integer) -filter for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 
 
 OPTIONS:

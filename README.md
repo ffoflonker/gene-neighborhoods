@@ -28,6 +28,11 @@ Cr9	Cre_09.g388750.t1	2824325	2830821
 
 Cr9	Cre_09.g388763.t1	3373489	3377999
 
+Vc9	Vocar_0009s0028.1	193952	208105
+
+Vc9	Vocar_0009s0029.1	209754	212303
+
+
 3. window size (integer) -window size in number of genes (Recommended <10)
 
 4. minimum number of orthologs (integer) -filter for gene neighborhoods with proximal orthologous gene pairs from a minimum number of species 

@@ -31,17 +31,18 @@ sub logger {
 
 
 
-if (scalar(@ARGV) < 4) {die "Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--stats] [--method default/cooccurring/select] \n";}
+if (scalar(@ARGV) < 4) {die "Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select] \n";}
 
 my $file= $ARGV[0]; # OrthoFinder legacy format or Orthomcl,input defaults  ******make sure no | in headers. headers must have species name before _.  eval 1e-5
 my $gff_file= $ARGV[1]; # must be ordered list by gene coordinates: species-contig (must be unique from all species), gene start, gene end. 
 my $window_size=$ARGV[2]; # change window size in number of genes
 my $ortholog_number=$ARGV[3]; # min ortholog number of species
 my $stats= 0;
+my $tabular = 0;
 my $method= "default";
-GetOptions ("stats" => \$stats, "method=s" => \$method,);
+GetOptions ("stats" => \$stats, "method=s" => \$method,"tabular" => \$tabular);
 
-if (($method ne "default") && ($method ne "cooccur") && ($method ne "select") ) {die "Method entered $method. Method options available: default, cooccur, or select"};
+if (($method ne "default") && ($method ne "cooccur") && ($method ne "select") ) {die "Method entered $method. Method options available: default,cooccur, or select"};
 
 my $select_spec;
 if ($method eq "select"){
@@ -138,7 +139,7 @@ while (<IN>) {
 					$OG{$ortholog} = $OG_name;
 					push @{$ortholog_list{$OG_name}}, $ortholog;
 					$score{$ortholog} = $OG_score;
-					if ($method eq "cooccur"){ #creates species list per OG for cooccurring comparison
+					if (($method eq "cooccur") || ($tabular == 1)) { #creates species list per OG for cooccurring comparison
 						if (none {$_ eq $spec} @{$OG_spec{$OG_name}}){
 							push @{$OG_spec{$OG_name}}, $spec;
 						}
@@ -585,6 +586,79 @@ sub clean_stats {
 	close CLEAN;
 	close UNIQED;
 	close STATS;
+}
+
+#################Tabular output ################
+
+if ($tabular == 1){
+	open (UNIQED, "<$header.ranked.uniq.txt"); 
+	open(TAB, ">$header.tabular.txt");
+
+	
+	my @all_spec;
+	my @spec_order;
+	my @line_genes;
+	my %species_genes;
+
+ 	#find all species for column names
+	while (<UNIQED>){
+		chomp;
+		my @field1 = (split /\t/,$_,2);
+		if (exists $field1[1]){
+			my @field2 = (split / /, $field1[1]);
+			foreach my $items (@field2){
+				my $species = (split /_/,$items)[0];
+				if (none {$_ eq $species} @all_spec){
+					push @all_spec, $species;
+				}
+			}
+		}
+	}
+
+	my @uniq_all_spec = uniq @all_spec;
+
+	print TAB "Ref chromosome";
+	foreach my $spec2 (@uniq_all_spec){
+		print TAB "\t$spec2";
+		push @spec_order, $spec2;
+	}
+	print TAB "\n";
+	seek UNIQED, 0,0;
+	while (<UNIQED>){
+		chomp;
+		my @field1 = (split /\t/,$_,2);
+		push @line_genes, $field1[0];
+		if ($_ eq '----------------'){
+			print TAB "__________\t";
+			for (my $j = 0; $j < @spec_order; $j++) {
+				print TAB "__________\t";
+			}
+		}
+		if (exists $field1[1]){
+			print TAB "$field1[0]\t";
+			my @field2 = (split / /, $field1[1]);
+			push @line_genes, @field2;
+			foreach my $gene (@line_genes){
+				my $species2 = (split /_/,$gene)[0];
+				push @{$species_genes{$species2}}, $gene;
+			}
+			for (my $j = 0; $j < @spec_order; $j++) {
+				if (exists $species_genes{$spec_order[$j]}) {
+					print TAB "@{$species_genes{$spec_order[$j]}}\t";
+				}	
+				elsif (grep {$_ eq $spec_order[$j]} @{$OG_spec{$OG{$field1[0]}}}) {
+				
+					print TAB "P\t";
+				}
+				else {
+					print TAB "A\t";	
+				}
+			}
+		}
+		%species_genes=();
+		@line_genes=();
+		print TAB "\n";
+	}
 }
 
 ###############################################

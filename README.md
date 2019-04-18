@@ -3,7 +3,7 @@ README gene_neighborhoods.pl
 
 Usage:
 ```
-"USAGE: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--stats] [--method default/cooccurring] 
+"USAGE: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--stats] [--method default/cooccurring/select] 
 ```
 
 Finds gene neighborhoods of proximal orthologous gene pairs conserved in a minimum number of species
@@ -44,10 +44,13 @@ OPTIONS:
 
 default: find clusters based on minimum number of orthologous proximal genes
 
-cooccur:find genes that always clustered in the species in which they are present (can lower minimum number of orthologs)
+cooccur:find genes that always clustered in the species in which they are present (can lower minimum number of orthologs).
+
+select: select for neighborhoods containing certain species. Useful for comparing to outgroup species, can lower minimum number of orthologs.
 
 --stats
   keeps only proximal orthologous gene pairs with greater than the minimum number of homologs and reports statistics. 
+  
 
 ---------------------------------------------------------------------------------
 

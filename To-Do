@@ -1,12 +1,9 @@
 To Do:
 
-1. clean_stats -find way to remove orthologs without proximal pair > min ortholog number
-
-2. add Select function to select for neighborhoods containing certain species
+1. clean_stats -find way to remove background synteny ( orthologs without proximal pair > min ortholog number)
 
 OUTPUTS
 
-3. tabular output with species as the columns
+2. tabular output with species as the columns
 
-4. automatically generate phylogenetic profiles (clustering,present, absent)
-
+3. automatically generate phylogenetic profiles (clustering,present, absent)

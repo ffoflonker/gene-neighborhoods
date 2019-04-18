@@ -63,6 +63,12 @@ Outputs:
 
 Optional outputs
 
+--tabular
+
+tabular output showing gene IDs for clustered genes, P= orthologous gene present in genome, but not clustered, A= orthologous gene absent from genome. 
+
+--stats
+
 5. File.clean.txt -filters for genes with greater than the minimum number of orthologs (Cautions: Need to fix)
 
 6. File.stats.txt

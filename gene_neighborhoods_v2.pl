@@ -8,6 +8,12 @@ use Time::HiRes qw( time );
 use Getopt::Long;
 use Array::Compare;
 
+
+#finds gene clusters based on a set window size in number of genes and returns clusters with a set minimum number of homologs. 
+# average base pair/gene is calculated for each chromosome, multiplied by window size and used to find clustered homologs on a sliding window basis.
+#Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select]
+
+
  ## collect error messages
 my %WARNS;
 local $SIG{__WARN__} = sub {
@@ -23,15 +29,7 @@ sub logger {
     }
   }
 
-#finds gene clusters based on a set window size in number of genes and returns clusters with a set minimum number of homologs. 
-# average base pair/gene is calculated for each chromosome, multiplied by window size and used to find clustered homologs on a sliding window basis.
-#
-# usage: perl gene_neighborhoods.pl Orthofinder_file.txt file.gff window_size min_ortholog_species_number 
-# next step: perl rank_gene_neighborhoods.pl gene_neighborhoods.out.txt Orthofinder_file.txt
-
-
-
-if (scalar(@ARGV) < 4) {die "Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select] \n";}
+if (scalar(@ARGV) < 4) {die "Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select/default_clean] \n";}
 
 my $file= $ARGV[0]; # OrthoFinder legacy format or Orthomcl,input defaults  ******make sure no | in headers. headers must have species name before _.  eval 1e-5
 my $gff_file= $ARGV[1]; # must be ordered list by gene coordinates: species-contig (must be unique from all species), gene start, gene end. 
@@ -42,7 +40,7 @@ my $tabular = 0;
 my $method= "default";
 GetOptions ("stats" => \$stats, "method=s" => \$method,"tabular" => \$tabular);
 
-if (($method ne "default") && ($method ne "cooccur") && ($method ne "select") ) {die "Method entered $method. Method options available: default,cooccur, or select"};
+if (($method ne "default") && ($method ne "cooccur") && ($method ne "select") && ($method ne "default_clean" )) {die "Method entered $method. Method options available: default, cooccur, select, or default_clean"};
 
 my $select_spec;
 if ($method eq "select"){
@@ -129,7 +127,7 @@ while (<IN>) {
      chomp;
      my @field1 = (split /: /,$_,2);
      $OG_name= $field1[0];
-     if (exists $field1[1]){
+     if (defined $field1[1]){
 		 my @orthologs = split (/ /, $field1[1]);
 		 if (scalar @orthologs > 1) { #only save orthogroups with at least two genes
 			my $OG_score= 1/(scalar @orthologs);
@@ -166,6 +164,9 @@ my $k=0;
 my $comp = Array::Compare->new;
 my $header;
 my $selected ="no";
+my %spec_cluster_keep;
+my @uniq_homolog_spec2;
+my @homolog_spec2;
 
 if ($method eq "default"){
 	$header = "Win.$window_size.min.$ortholog_number";
@@ -176,6 +177,10 @@ if ($method eq "cooccur"){
 if ($method eq "select"){
 	$header = "Win.$window_size.min.$ortholog_number.select";
 }
+if ($method eq "default_clean"){
+	$header = "Win.$window_size.min.$ortholog_number.default-clean";
+}
+
 open (TMP, ">$header.txt"); 
 
 while (defined window @gene_list, $window_size){
@@ -209,24 +214,17 @@ while (defined window @gene_list, $window_size){
 				}
 			}
 		}
-		OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
-			my $spec1 = (split /_/,$window[$j])[0];
-			push @homolog_spec, $spec1;
-			foreach (@{$close_homologs{$window[$j]}}) {
-				my $spec = (split /_/,$_)[0];
-				push @homolog_spec, $spec;
-			}
-			@uniq_homolog_spec = uniq @homolog_spec;
-			if ($method eq "default"){
-				method_default();
-			}
-			if ($method eq "cooccur"){
-				method_cooccur();
-			}
-			if ($method eq "select"){
-				method_select();
-			}
-			@homolog_spec=();
+		if ($method eq "default"){
+			method_default();
+		}
+		if ($method eq "cooccur"){
+			method_cooccur();
+		}
+		if ($method eq "select"){
+			method_select();
+		}
+		if ($method eq "default_clean"){
+			method_default_clean();
 		}
 		$k=0;	
 		@close_homolog_list=(); # reset window
@@ -247,60 +245,17 @@ print "Done finding gene pairs\n";
 ###sub method default
 
 sub method_default {
-
-	if (scalar(@uniq_homolog_spec) >= $ortholog_number){
-		$k++;
-		if ($k==2){ #minimum two genes >min ortholog number
-			print TMP "----------------\n";
-			for (my $i = 0; $i < @window; $i++) {
-				if (exists $close_homologs{$window[$i]}){
-					print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
-				}
-				else{
-					print TMP "$window[$i]\n";
-				}	
-			}
-			@homolog_spec=();
-			last OUTER;
+	OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+		my $spec1 = (split /_/,$window[$j])[0];
+		push @homolog_spec, $spec1;
+		foreach (@{$close_homologs{$window[$j]}}) {
+			my $spec = (split /_/,$_)[0];
+			push @homolog_spec, $spec;
 		}
-	
-	}
-}
-
-### sub method coocccurring 
-
-sub method_cooccur {
-	
-
-	if (scalar(@uniq_homolog_spec) >= $ortholog_number){
-		if ($comp->perm(\@uniq_homolog_spec, \@{$OG_spec{$OG{$window[$j]}}}) ){ #count if all orthologs per OG are also cooccurring
+		@uniq_homolog_spec = uniq @homolog_spec;
+		if (scalar(@uniq_homolog_spec) >= $ortholog_number){
 			$k++;
-		}
-		if ($k==2) { #min two genes cooccurring and > min ortholog number
-			print TMP "----------------\n";
-			for (my $i = 0; $i < @window; $i++) {
-				if (exists $close_homologs{$window[$i]}){
-					print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
-				}
-				else{
-					print TMP "$window[$i]\n";
-				}	
-			}
-			@homolog_spec=();
-			last OUTER;
-		}
-		
-	}
-
-}
-
-###sub method select
-
-sub method_select {
-	if (scalar(@uniq_homolog_spec) >= $ortholog_number){
-		if (grep {$_ eq $select_spec} @uniq_homolog_spec){
-			$k++;
-			if ($k==2) { #min two genes have selected species and > min ortholog number
+			if ($k==2){ #minimum two genes >min ortholog number
 				print TMP "----------------\n";
 				for (my $i = 0; $i < @window; $i++) {
 					if (exists $close_homologs{$window[$i]}){
@@ -311,14 +266,138 @@ sub method_select {
 					}	
 				}
 				@homolog_spec=();
-				$selected="no";
 				last OUTER;
 			}
+	
 		}
+		@homolog_spec=();
 	}
 }
 
-############## Merge neighborhoods ############################
+### sub method coocccurring 
+
+sub method_cooccur {
+	OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+		my $spec1 = (split /_/,$window[$j])[0];
+		push @homolog_spec, $spec1;
+		foreach (@{$close_homologs{$window[$j]}}) {
+			my $spec = (split /_/,$_)[0];
+			push @homolog_spec, $spec;
+		}
+		@uniq_homolog_spec = uniq @homolog_spec;
+
+		if (scalar(@uniq_homolog_spec) >= $ortholog_number){
+			if ($comp->perm(\@uniq_homolog_spec, \@{$OG_spec{$OG{$window[$j]}}}) ){ #count if all orthologs per OG are also cooccurring
+				$k++;
+			}
+			if ($k==2) { #min two genes cooccurring and > min ortholog number
+				print TMP "----------------\n";
+				for (my $i = 0; $i < @window; $i++) {
+					if (exists $close_homologs{$window[$i]}){
+						print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
+					}
+					else{
+						print TMP "$window[$i]\n";
+					}	
+				}
+				@homolog_spec=();
+				last OUTER;
+			}
+		
+		}
+		@homolog_spec=();
+	}
+}
+
+###sub method select
+
+sub method_select {
+	OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+		my $spec1 = (split /_/,$window[$j])[0];
+		push @homolog_spec, $spec1;
+		foreach (@{$close_homologs{$window[$j]}}) {
+			my $spec = (split /_/,$_)[0];
+			push @homolog_spec, $spec;
+		}
+		@uniq_homolog_spec = uniq @homolog_spec;
+
+		if (scalar(@uniq_homolog_spec) >= $ortholog_number){
+			if (grep {$_ eq $select_spec} @uniq_homolog_spec){
+				$k++;
+				if ($k==2) { #min two genes have selected species and > min ortholog number
+					print TMP "----------------\n";
+					for (my $i = 0; $i < @window; $i++) {
+						if (exists $close_homologs{$window[$i]}){
+							print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
+						}
+						else{
+							print TMP "$window[$i]\n";
+						}	
+					}
+					@homolog_spec=();
+					$selected="no";
+					last OUTER;
+				}
+			}
+		}
+		@homolog_spec=();
+	}
+}
+
+
+sub method_default_clean {
+	for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+		my $spec1 = (split /_/,$window[$j])[0];
+		push @homolog_spec, $spec1;
+		foreach (@{$close_homologs{$window[$j]}}) {
+			my $spec = (split /_/,$_)[0];
+			push @homolog_spec, $spec;
+		}
+		@uniq_homolog_spec = uniq @homolog_spec;
+		if (scalar @uniq_homolog_spec >= $ortholog_number){
+			$k++;
+			foreach my $spec2 (@uniq_homolog_spec) {
+				$spec_cluster_keep{$spec2}++; #count species per line with enough homologs
+			}
+		}
+		@homolog_spec=();	
+	}
+	if ($k>=2){ #minimum two genes >min ortholog number
+	print TMP "----------------\n";
+		for (my $i = 0; $i < @window; $i++) {
+			my $ref_spec = (split /_/,$window[$i])[0];
+			push @homolog_spec2, $ref_spec;
+			print TMP "$window[$i]\t";
+			if (exists $close_homologs{$window[$i]}) {
+				foreach (@{$close_homologs{$window[$i]}}) {
+					my $spec4 = (split /_/,$_)[0];
+					push @homolog_spec2, $spec4;
+				}
+				my @uniq_homolog_spec2 = uniq @homolog_spec2;
+				if (scalar @uniq_homolog_spec2 >= $ortholog_number) { 
+					#print "length good $window[$i]\t@{$close_homologs{$window[$i]}} \t @uniq_homolog_spec2\n";
+					foreach my $gene (@{$close_homologs{$window[$i]}}) {
+						my $spec3 = (split /_/,$gene)[0];
+						#print "spec count $spec_cluster_keep{$spec3} $gene $spec3 k= $k\n";
+						if ($spec_cluster_keep{$spec3} >= 2) { #remove genes that are not present in at least pairs in the highly conserved genes 
+							print TMP "$gene ";
+						}
+					}
+				}
+			}
+			print TMP "\n";	
+			@homolog_spec2=();
+		}
+	}
+	%spec_cluster_keep =();
+	
+	
+	
+	
+}
+
+
+########################### Merge neighborhoods ############################
 
 
 my $m=1;
@@ -338,7 +417,7 @@ while (<MERGE>) {
 		}
 		else {
 			push @{$all{$group}},$field[0];
-			if (exists $field[1]){
+			if (defined $field[1]){
 				my @results = split (/ /, $field[1]);
 				foreach my $result (@results){
 					push @{$rest{$field[0]}},$result;
@@ -491,15 +570,15 @@ while (<RANKED>){
 ################Options###########################
 
 if ($stats == 1){
-	clean_stats();
+	stats();
 }
 
-################Cleanup and Stats#################
+################ Stats #################
 
-#filters for highly conserved genes >min_ortholog number and gets stats
-sub clean_stats {
+#gets stats
+sub stats {
 
-	open (CLEAN, ">$header.clean.txt");
+
 	open (UNIQED, "<$header.ranked.uniq.txt"); 
 	open(STATS, ">$header.stats.txt");
 
@@ -526,7 +605,7 @@ sub clean_stats {
 
 	my @uniq_all_spec = uniq @all_spec;
 
-	print STATS "Score\tNumber_orthologs\tCluster_size";
+	print STATS "Score\tMax_Number_orthologs\tCluster_size";
 	foreach my $spec2 (@uniq_all_spec){
 		print STATS "\t$spec2";
 		push @spec_order, $spec2;
@@ -537,35 +616,28 @@ sub clean_stats {
 	while (<UNIQED>){
 		chomp;
 		my @field1 = (split /\t/,$_,2);
-		push @item_spec, $field1[0];
+		my $species2 = (split /_/,$field1[0])[0];
+		push @item_spec, $species2;
 		if ($_ =~m/score/){
 			$score = (split /:/,$_) [1];
 		}
-		if (exists $field1[1]){
+		if (length $field1[1] > 1){ #make sure not count just ref chromosome
 			my @field2 = (split / /, $field1[1]);
 			foreach my $items (@field2){
 				my $species = (split /_/,$items)[0];
 				push @item_spec, $species;
 			}
 			my @uniq_spec = uniq @item_spec;
+			$cluster_size++;
+			if (scalar @uniq_spec > $num_ortho){
+				$num_ortho= scalar @uniq_spec;
+			}
+			foreach my $item2 (@item_spec){
+				$count_spec{$item2}++;
+			}
 		
-			if (scalar @uniq_spec>= $ortholog_number) {
-				print CLEAN "$_\n";
-				$cluster_size++;
-				if (scalar @uniq_spec > $num_ortho){
-					$num_ortho= scalar @uniq_spec;
-				}
-				foreach my $item2 (@item_spec){
-					$count_spec{$item2}++;
-				}
-			}
-			else {
-				print CLEAN "$field1[0]\n";
-			}
 		}
-		else {
-			print CLEAN "$field1[0]\n";
-		}
+
 		if ($_ eq '----------------'){
 			print STATS "\n$score\t$num_ortho\t$cluster_size";
 			for (my $j = 0; $j < @spec_order; $j++) {
@@ -583,7 +655,7 @@ sub clean_stats {
 		}
 		@item_spec =();
 	}
-	close CLEAN;
+
 	close UNIQED;
 	close STATS;
 }
@@ -604,7 +676,7 @@ if ($tabular == 1){
 	while (<UNIQED>){
 		chomp;
 		my @field1 = (split /\t/,$_,2);
-		if (exists $field1[1]){
+		if (defined $field1[1]){
 			my @field2 = (split / /, $field1[1]);
 			foreach my $items (@field2){
 				my $species = (split /_/,$items)[0];
@@ -634,7 +706,7 @@ if ($tabular == 1){
 				print TAB "__________\t";
 			}
 		}
-		if (exists $field1[1]){
+		if (defined $field1[1]){
 			print TAB "$field1[0]\t";
 			my @field2 = (split / /, $field1[1]);
 			push @line_genes, @field2;
@@ -648,10 +720,10 @@ if ($tabular == 1){
 				}	
 				elsif (grep {$_ eq $spec_order[$j]} @{$OG_spec{$OG{$field1[0]}}}) {
 				
-					print TAB "P\t";
+					print TAB "Present\t";
 				}
 				else {
-					print TAB "A\t";	
+					print TAB "Absent\t";	
 				}
 			}
 		}

@@ -51,7 +51,8 @@ select: select for neighborhoods containing certain species. Useful for comparin
 default_clean: default method of cluster finding, with a cleanup step to remove genes under the minimum ortholog number threshold. Helps remove background synteny. 
 
 --stats
-  keeps only proximal orthologous gene pairs with greater than the minimum number of homologs and reports statistics. 
+
+  reports cluster statistics. 
   
 
 ---------------------------------------------------------------------------------

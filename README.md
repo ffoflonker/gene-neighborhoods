@@ -3,7 +3,7 @@ README gene_neighborhoods.pl
 
 Usage:
 ```
-"USAGE: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular] [--stats] [--method default/cooccurring/select/default_clean] 
+"USAGE: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular] [--stats] [--method default/cooccurring/select/default_clean/select_clean] 
 ```
 
 Finds gene neighborhoods of proximal orthologous gene pairs conserved in a minimum number of species
@@ -49,6 +49,8 @@ cooccur:find genes that always clustered in the species in which they are presen
 select: select for neighborhoods containing certain species. Useful for comparing to outgroup species, can lower minimum number of orthologs.
 
 default_clean: default method of cluster finding, with a cleanup step to remove genes under the minimum ortholog number threshold. Helps remove background synteny. 
+
+select_clean: 'select' method of cluster finding, with a cleanup step to remove genes under the minimum ortholog number threshold and not selected for. Helps remove background synteny.
 
 --stats
 

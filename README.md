@@ -70,7 +70,7 @@ Optional outputs
 
 --tabular
 
-tabular output showing gene IDs for clustered genes, P= orthologous gene present in genome, but not clustered, A= orthologous gene absent from genome. 
+tabular text and html output showing gene IDs for clustered genes, Present= orthologous gene present in genome, but not clustered, Aabsent= orthologous gene absent from genome. 
 
 --stats
 

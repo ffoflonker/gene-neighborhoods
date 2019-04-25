@@ -794,7 +794,6 @@ if ($tabular == 1){
 	}
 
 	my @uniq_all_spec = uniq @all_spec;
-
 	print TAB "Ref chromosome";
 	foreach my $spec2 (@uniq_all_spec){
 		print TAB "\t$spec2";
@@ -837,6 +836,51 @@ if ($tabular == 1){
 		@line_genes=();
 		print TAB "\n";
 	}
+	close TAB;
+	
+		## HTML table
+	open (TABBED, "<$header.tabular.txt");
+	open (HTML, ">$header.html");
+	my $i=0;
+	
+	print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:2px solid white}.mytable td:nth-child(1) { background: gold; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
+	while (<TABBED>){
+		chomp;
+		$i++;
+		my @field = (split /\t/,$_);
+		if ($i == 1){
+			print HTML '<tr style = "background-color: gold;">';
+			foreach my $col_name (@field){
+				print HTML '<th style = "border-right:2px solid white";>'; print HTML "$col_name</th>";
+			}
+			print HTML "</tr>\n";
+		}
+		elsif (defined $field[1]){
+			if ($field[1] =~ m/______/){
+				print HTML '<tr style="border-top: 5px solid black;">';
+			}
+			else {
+				foreach my $item (@field){
+					chomp ($item);
+					if ($item eq "Absent") {
+						print HTML '<td style = "background-color: ghostwhite;">';print HTML "$item</td>";
+					}
+					elsif ($item eq "Present") {
+						print HTML '<td style="background-color:mistyrose;">'; print HTML "$item</td>";
+					}
+					else{
+						print HTML "<td>$item</td>";
+					}
+				}
+				print HTML "</tr>\n";
+			}
+		}
+		
+	}
+	print HTML "</tbody>\n</table>";
+
+	
+	
 }
 
 ###############################################

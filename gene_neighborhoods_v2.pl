@@ -841,17 +841,21 @@ if ($tabular == 1){
 		## HTML table
 	open (TABBED, "<$header.tabular.txt");
 	open (HTML, ">$header.html");
+	open (HEAT, ">$header.heatmap.html");
+	open (TMP, ">$header.heatmap.tmp.txt");
 	my $i=0;
+	my @array=();
 	
-	print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:2px solid white}.mytable td:nth-child(1) { background: gold; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
+		print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:4px solid white}.mytable td:nth-child(1) { background: gold; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
 	while (<TABBED>){
 		chomp;
 		$i++;
 		my @field = (split /\t/,$_);
+		push @array, \@field;
 		if ($i == 1){
 			print HTML '<tr style = "background-color: gold;">';
 			foreach my $col_name (@field){
-				print HTML '<th style = "border-right:2px solid white";>'; print HTML "$col_name</th>";
+				print HTML '<th style = "border-right:2px solid gold";>'; print HTML "$col_name</th>";
 			}
 			print HTML "</tr>\n";
 		}
@@ -863,7 +867,7 @@ if ($tabular == 1){
 				foreach my $item (@field){
 					chomp ($item);
 					if ($item eq "Absent") {
-						print HTML '<td style = "background-color: ghostwhite;">';print HTML "$item</td>";
+						print HTML '<td style = "background-color: white;">';print HTML "$item</td>";
 					}
 					elsif ($item eq "Present") {
 						print HTML '<td style="background-color:mistyrose;">'; print HTML "$item</td>";
@@ -878,11 +882,103 @@ if ($tabular == 1){
 		
 	}
 	print HTML "</tbody>\n</table>";
+	
+	
+	########## heatmap
+	use Array::Transpose;
+	use Text::Table;
+	
+	print HEAT ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable th {border-bottom: 5px solid} .mytable td:nth-child(1) { background: gold; } th.rotate {height: 160px; white-space: nowrap;} th.rotate > div { transform: translate(25px, 51px) rotate(315deg);width: 34px;} th.rotate > div > span { padding: 0px 0px;} </style><table class= "mytable"><tbody>';
+	print HEAT "\n";
+	my $col=0;
+	my $row=0;	
+	@array=transpose(\@array); 
 
-	
-	
+	for my $ref (@array) {
+		$row++;
+		if ($row >= 2){
+			for (my $j = 0; $j < scalar (@$ref); $j++) {
+				$col++;
+				if ($col >=2){
+					if (@$ref[$j] =~ m/______/){
+						@$ref[$j] =0;
+						
+					}
+					elsif (@$ref[$j] eq "Absent"){
+						@$ref[$j]=1;
+					}
+					elsif (@$ref[$j] eq "Present"){
+						@$ref[$j]=2;
+					}
+					elsif (@$ref[$j] eq "") {
+						delete @$ref[$j];
+					}
+					else {
+						@$ref[$j]=3;
+					}
+				}
+				
+			}
+			$col=0;
+		}
+	}
+
+	$row=0;
+	$col=0;
+	for my $ref (@array) {
+		$row++;
+		print HEAT "<tr>";
+		if ($row == 1){
+			print HEAT '<tr style = "background-color: white;">'; 
+			foreach my $inner (@$ref) {
+			
+				if (length $inner >2){
+					if ($inner =~ m/______/){
+						print HEAT '<th class="rotate"><div><span>'; print HEAT "$inner</span></div></th>";
+					}
+					else{
+						print HEAT '<th class="rotate"><div><span>';print HEAT  "$inner</span></div></th>";
+					}
+				}
+				
+			}
+			print HEAT "</tr>\n";
+			$col=0;
+		}
+		
+		else{
+			for my $inner (@$ref) {
+				if (defined $inner){
+					$col++;
+					if ($col ==1){
+						print HEAT '<td style = "background-color: gold;">'; print HEAT "$inner</td>";
+					}
+					elsif ($inner ==0){
+							print HEAT '<td style="background-color:black;"></td>';
+					}
+					else{
+						if ($inner ==1){
+							print HEAT '<td style = "background-color: white;"></td>';
+						}
+						elsif ($inner ==2){
+							print HEAT '<td style="background-color:mistyrose;"></td>';
+						}
+						else{
+							print HEAT "<td></td>";
+						}
+					}
+				}
+			}
+			$col=0;
+			print HEAT "</tr>\n";
+		}
+	}
+	print HEAT "</tbody>\n</table>";	
+	#print Dumper @array;
+	my $tb = Text::Table->new;
+	$tb-> load(@array);
+	print TMP $tb;
 }
-
 ###############################################
 my $end = time();
 printf("runtime %.2f\n", $end - $starttime);

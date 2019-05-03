@@ -794,18 +794,19 @@ if ($tabular == 1){
 	}
 
 	my @uniq_all_spec = uniq @all_spec;
-	print TAB "Ref chromosome";
+	print TAB "Ref_chromosome";
 	foreach my $spec2 (@uniq_all_spec){
 		print TAB "\t$spec2";
 		push @spec_order, $spec2;
 	}
 	print TAB "\n";
+	
 	seek UNIQED, 0,0;
 	while (<UNIQED>){
 		chomp;
 		my @field1 = (split /\t/,$_,2);
 		push @line_genes, $field1[0];
-		if ($_ eq '----------------'){
+		if (($_ eq '----------------') || (eof ==1)){
 			print TAB "__________\t";
 			for (my $j = 0; $j < @spec_order; $j++) {
 				print TAB "__________\t";
@@ -841,25 +842,69 @@ if ($tabular == 1){
 		## HTML table
 	open (TABBED, "<$header.tabular.txt");
 	open (HTML, ">$header.html");
-	open (HEAT, ">$header.heatmap.html");
-	open (TMP, ">$header.heatmap.tmp.txt");
 	my $i=0;
-	my @array=();
 	
-		print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:4px solid white}.mytable td:nth-child(1) { background: gold; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
+	print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:2px solid white}.mytable td:nth-child(1) { background: gold; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
 	while (<TABBED>){
 		chomp;
 		$i++;
 		my @field = (split /\t/,$_);
-		push @array, \@field;
 		if ($i == 1){
 			print HTML '<tr style = "background-color: gold;">';
 			foreach my $col_name (@field){
-				print HTML '<th style = "border-right:2px solid gold";>'; print HTML "$col_name</th>";
+				print HTML '<th style = "border-right:2px solid white";>'; print HTML "$col_name</th>";
 			}
 			print HTML "</tr>\n";
 		}
 		elsif (defined $field[1]){
+			if ($field[1] =~ m/______/){
+				print HTML '<tr style="border-top: 5px solid black;">';
+			}
+			else {
+				foreach my $item (@field){
+					chomp ($item);
+					if ($item eq "Absent") {
+						print HTML '<td style = "background-color: ghostwhite;">';print HTML "$item</td>";
+					}
+					elsif ($item eq "Present") {
+						print HTML '<td style="background-color:mistyrose;">'; print HTML "$item</td>";
+					}
+					else{
+						print HTML "<td>$item</td>";
+					}
+				}
+				print HTML "</tr>\n";
+			}
+		}
+		
+	}
+	print HTML "</tbody>\n</table>";
+
+		use Data::Dumper;
+	## HTML table
+	open (TABBED, "<$header.tabular.txt");
+	open (HTML, ">$header.html");
+	open (HEAT, ">$header.heatmap.html");
+	#open (TMP, ">$header.heatmap.tmp.txt");
+	my $a=0;
+	my @array=();
+	my $tot_gene; #includes lines
+	
+	print HTML ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable td {border-right:4px solid white}.mytable td:nth-child(1) { background: powderblue; border-right: 5px solid black; }</style><table class= "mytable"><tbody>';
+	while (<TABBED>){
+		chomp;
+		$a++;
+		my @field = (split /\t/,$_);
+		push @array, \@field;
+		if ($a == 1){
+			print HTML '<tr style = "background-color: powderblue;">';
+			foreach my $col_name (@field){
+				print HTML '<th style = "border-right:2px solid powderblue";>'; print HTML "$col_name</th>";
+			}
+			print HTML "</tr>\n";
+		}
+		elsif (defined $field[1]){
+			$tot_gene++;
 			if ($field[1] =~ m/______/){
 				print HTML '<tr style="border-top: 5px solid black;">';
 			}
@@ -883,13 +928,13 @@ if ($tabular == 1){
 	}
 	print HTML "</tbody>\n</table>";
 	
+
 	
-	########## heatmap
+	
+	########## for Heatmap
 	use Array::Transpose;
 	use Text::Table;
 	
-	print HEAT ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable th {border-bottom: 5px solid} .mytable td:nth-child(1) { background: gold; } th.rotate {height: 160px; white-space: nowrap;} th.rotate > div { transform: translate(25px, 51px) rotate(315deg);width: 34px;} th.rotate > div > span { padding: 0px 0px;} </style><table class= "mytable"><tbody>';
-	print HEAT "\n";
 	my $col=0;
 	my $row=0;	
 	@array=transpose(\@array); 
@@ -923,9 +968,145 @@ if ($tabular == 1){
 		}
 	}
 
-	$row=0;
-	$col=0;
+	
+	
+	####### For Clustering input
+	open (TMP2, ">input_hierarchy.tmp.txt");
+	open (TMP3, ">input_hierarchy2.tmp.txt");
+	
+	my @array2; #sum of presence/absence data per neighborhood
+	my @newrow;
+	my $sum=0;
+	my $row=0;
+	my $col=0;
+	my %groups;
+	my $group_counter=0;
+	my %spec;
+	my $spec_num=0;
+	my %colgene;
+	my $col1=0;
+
+	
 	for my $ref (@array) {
+		if (defined $ref){
+			$row++;
+			if ($row == 1){
+				for (my $c = 0; $c < scalar (@$ref); $c++) {
+					if (defined @$ref[$c]){
+						if (@$ref[$c] =~/_______/){
+							$col1++;
+						}
+						elsif ( @$ref[$c] !~ /Ref_chromosome/) {
+							push @{$colgene{$col1}}, @$ref[$c];
+						}
+					}
+				}
+			}
+			if ($row >= 2){
+				for (my $c = 0; $c < scalar (@$ref); $c++) {
+					if (defined @$ref[$c]){
+						$col++;
+						if ($col==1){
+							$spec{$spec_num}= @$ref[$c];
+							$spec_num++;
+						}
+						if ($col >=2){
+							$sum= $sum+@$ref[$c];
+							if (@$ref[$c] == 0) {
+								push @newrow, $sum;
+								$sum=0;
+								print TMP3 "$group_counter\t";
+								$group_counter++;
+							}
+							else{
+								push @{$groups{$group_counter}},@$ref[$c]; 
+							}
+						}
+					}
+				}
+			}
+		}			
+		push @array2, [@newrow];
+		@newrow=();
+		$col=0;
+		$sum=0;
+		print TMP3 "\n";
+	}
+					
+	my $tb = Text::Table->new;
+	$tb-> load(@array2);
+	print TMP2 $tb;
+	
+	close TMP2;
+	close TMP3;
+	
+	####### Do Python script for hierarchical clustering
+
+
+	system ("python hierarchical_cluster.py input_hierarchy.tmp.txt input_hierarchy2.tmp.txt");
+
+
+
+	###reorder matrix
+
+	open (ORDERSP, "<order_spec.tmp.txt");
+	open (ORDER1, "<ordered.tmp.txt");
+	open (ORDER2, ">ordered_genes.tmp.txt");
+	open (ORDERCOL, "<order_col.tmp.txt");
+	my @spec_order2;
+	my @col_reorder;
+	my $row=0;
+	
+	while (<ORDERSP>){
+		chomp;
+		push @spec_order2, $_;
+	}
+	
+	while (<ORDERCOL>){
+		chomp;
+		push @col_reorder, $_;
+	}
+	
+	print ORDER2 "Ref_chromosome\t";
+	foreach my $colgene_id (@col_reorder){
+		foreach my $colgene_name (@{$colgene{$colgene_id}}){
+			print ORDER2 "$colgene_name\t";
+		}
+		print ORDER2 "______________________\t";
+	}
+	print ORDER2 "\n";
+	while (<ORDER1>){
+		chomp;
+		my @field = (split /\t/,$_);
+		print ORDER2 "$spec{$spec_order2[$row]}\t\0";
+		foreach my $groupid (@field){
+			foreach my $gene_ex ( @{$groups{$groupid}} ){
+				print ORDER2 "$gene_ex\t";
+			}
+			print ORDER2 "0\t";
+		}
+		print ORDER2 "\n";
+		$row++;
+	}
+	close ORDERSP;
+	close ORDER1;
+	close ORDER2;
+	
+	## Make HTML tabular output heatmap
+	open (ORDER3, "<ordered_genes.tmp.txt");
+	my @final_array;
+	
+	while (<ORDER3>) {
+		chomp;
+		my @field = (split /\t/,$_);
+		push @final_array, (\@field);
+	}
+	print HEAT ' <style>.mytable{border-collapse:collapse; background-color: lightcoral;} .mytable th {border-bottom: 5px solid; background-color:powderblue} .mytable td {height: 34px ; border-top: 5px solid white; border-right: 5px solid white}.mytable td:nth-child(1) { background: powderblue; } th.rotate {height: 160px; white-space: nowrap;} th.rotate > div { transform: translate(25px, 51px) rotate(315deg);width: 34px;} th.rotate > div > span { padding: 0px 0px;} .wrapper {position: relative;} .scroller {margin-left: 141px;overflow-x: scroll;overflow-y: visible;padding-bottom: 5px;width: 2000px;} .mytable .headcol {left: 0;position: absolute;top: auto;width: 120px;} </style><div class="wrapper"> <div class="scroller"><table class= "mytable"><tbody>';
+	print HEAT "\n";
+	
+	my $row=0;
+	my $col=0;
+	for my $ref (@final_array) {
 		$row++;
 		print HEAT "<tr>";
 		if ($row == 1){
@@ -935,6 +1116,9 @@ if ($tabular == 1){
 				if (length $inner >2){
 					if ($inner =~ m/______/){
 						print HEAT '<th class="rotate"><div><span>'; print HEAT "$inner</span></div></th>";
+					}
+					elsif ($inner eq "Ref_chromosome"){
+						print HEAT '<th class = "headcol" class="rotate"><div><span>'; print HEAT "$inner</span></div></th>";
 					}
 					else{
 						print HEAT '<th class="rotate"><div><span>';print HEAT  "$inner</span></div></th>";
@@ -951,10 +1135,10 @@ if ($tabular == 1){
 				if (defined $inner){
 					$col++;
 					if ($col ==1){
-						print HEAT '<td style = "background-color: gold;">'; print HEAT "$inner</td>";
+						print HEAT '<td class="headcol" style=" border-top: 5px solid">'; print HEAT "$inner</td>";
 					}
 					elsif ($inner ==0){
-							print HEAT '<td style="background-color:black;"></td>';
+							print HEAT '<td style="background-color:black; border-top: 5px solid; border-right: 5px solid"></td>';
 					}
 					else{
 						if ($inner ==1){
@@ -973,12 +1157,14 @@ if ($tabular == 1){
 			print HEAT "</tr>\n";
 		}
 	}
-	print HEAT "</tbody>\n</table>";	
-	#print Dumper @array;
-	my $tb = Text::Table->new;
-	$tb-> load(@array);
-	print TMP $tb;
+	print HEAT "</tbody></table></div></div>";	
+	#my $tb = Text::Table->new;
+	$tb-> load(@final_array);
+	#print TMP $tb;
+	system ("rm *tmp.txt");
+	
 }
+
 ###############################################
 my $end = time();
 printf("runtime %.2f\n", $end - $starttime);

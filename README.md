@@ -70,9 +70,14 @@ Optional outputs
 
 --tabular
 
+File.tabular.txt
+File.html
+
 tabular text and html output showing gene IDs for clustered genes, Present= orthologous gene present in genome, but not clustered, Absent= orthologous gene absent from genome. 
 
-heatmap output: light red= present, dark red = clustering, white=absent.
+File.heatmap.html
+
+heatmap output: light red= present, dark red = clustering, white=absent. Species and gene neighborhoods are clustered in hierarchical order. 
 
 --stats
 

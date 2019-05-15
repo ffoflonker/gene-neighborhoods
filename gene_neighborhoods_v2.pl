@@ -671,28 +671,26 @@ while (<RANKED>){
 	
 }
 
+close RANKED;
+close UNIQ;
 ################Options###########################
-
-if ($stats == 1){
-	stats();
-}
 
 ################ Stats #################
 
 #gets stats
-sub stats {
+if ($stats ==1) {
 
 
 	open (UNIQED, "<$header.uniq.txt"); 
 	open(STATS, ">$header.stats.txt");
 
-	my @item_spec;
-	my @all_spec;
-	my %count_spec;
+	my @item_spec=();
+	my @all_spec=();
+	my %count_spec=();
 	my $score=0;
-	my @spec_order;
+	my @spec_order=();
 	my $cluster_size =0;
-	my $num_ortho;
+	my $num_ortho=0;
 
 
  	#find all species for columns

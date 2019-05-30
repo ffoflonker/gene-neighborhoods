@@ -11,7 +11,7 @@ use Array::Compare;
 
 #finds gene clusters based on a set window size in number of genes and returns clusters with a set minimum number of homologs. 
 # average base pair/gene is calculated for each chromosome, multiplied by window size and used to find clustered homologs on a sliding window basis.
-#Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select/default_clean/select_clean]
+#Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccur/select/default_clean/select_clean]
 
 
  ## collect error messages

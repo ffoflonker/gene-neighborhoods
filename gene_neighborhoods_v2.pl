@@ -11,7 +11,7 @@ use Array::Compare;
 
 #finds gene clusters based on a set window size in number of genes and returns clusters with a set minimum number of homologs. 
 # average base pair/gene is calculated for each chromosome, multiplied by window size and used to find clustered homologs on a sliding window basis.
-#Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccur/select/default_clean/select_clean]
+#Usage: perl gene_neighborhoods.pl <OrthoMCL_output_file> <gff_file> <window_size_integer> <min_ortholog_species_number_integer>  OPTIONS: [--tabular][--stats] [--method default/cooccurring/select/default_clean/select_clean]
 
 
  ## collect error messages
@@ -167,6 +167,7 @@ my $selected ="no";
 my %spec_cluster_keep;
 my @uniq_homolog_spec2;
 my @homolog_spec2;
+my %pairs;
 
 if ($method eq "default"){
 	$header = "Win.$window_size.min.$ortholog_number";
@@ -208,9 +209,13 @@ while (defined window @gene_list, $window_size){
 						if (($gff{$key1}[1] < ($gff{$key2}[1] + $gene_density_chr{$gff{$key1}[0]})) && ($gff{$key1}[1] > ($gff{$key2}[1] - $gene_density_chr{$gff{$key1}[0]})) && ($homolog_match{$key2} !~m/$homolog_match{$key1}/)) { #make sure references within a range and not in the same homologous group
 							my $homologmatch_key1_spec = (split /_/, $homolog_match{$key1}) [0];
 							if ($homologmatch_key1_spec !~m/$key1_spec/){ # make sure homologs are not from the same species 
+								if (none {$_ eq $key2} @{$pairs{$key1}}){
+									push @{$pairs{$key1}},$key2;
+								}
 								if (none {$_ eq $key1} @close_homolog_list){
 									push @{$close_homologs{$homolog_match{$key1}}}, $key1;
 									push @close_homolog_list, $key1;
+									
 								}
 							}
 							
@@ -243,7 +248,7 @@ while (defined window @gene_list, $window_size){
 }
 
 
-
+#print Dumper (%pairs);
 print OUT "----------------\n";
 
 
@@ -354,8 +359,8 @@ sub method_select {
 
 
 ####### Clean-up methods
-sub method_default_clean {
-	for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+sub method_default_clean { # first step the same as default method except prints to temp file
+	OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
 		my $spec1 = (split /_/,$window[$j])[0];
 		push @homolog_spec, $spec1;
 		foreach (@{$close_homologs{$window[$j]}}) {
@@ -363,47 +368,30 @@ sub method_default_clean {
 			push @homolog_spec, $spec;
 		}
 		@uniq_homolog_spec = uniq @homolog_spec;
-		
-		if (scalar @uniq_homolog_spec >= $ortholog_number){
+		if (scalar(@uniq_homolog_spec) >= $ortholog_number){
 			$k++;
-			foreach my $spec2 (@uniq_homolog_spec) {
-				$spec_cluster_keep{$spec2}++; #count species per line with enough homologs
-			}
-		}
-		@homolog_spec=();	
-	}
-	if ($k>=2){ #minimum two genes >min ortholog number
-	print TMP "----------------\n";
-		for (my $i = 0; $i < @window; $i++) {
-			my $ref_spec = (split /_/,$window[$i])[0];
-			push @homolog_spec2, $ref_spec;
-			print TMP "$window[$i]\t";
-			if (exists $close_homologs{$window[$i]}) {
-				foreach (@{$close_homologs{$window[$i]}}) {
-					my $spec4 = (split /_/,$_)[0];
-					push @homolog_spec2, $spec4;
-				}
-				my @uniq_homolog_spec2 = uniq @homolog_spec2;
-				if (scalar @uniq_homolog_spec2 >= $ortholog_number) { 
-					#print "length good $window[$i]\t@{$close_homologs{$window[$i]}} \t @uniq_homolog_spec2\n";
-					foreach my $gene (@{$close_homologs{$window[$i]}}) {
-						my $spec3 = (split /_/,$gene)[0];
-						#print "spec count $spec_cluster_keep{$spec3} $gene $spec3 k= $k\n";
-						if ($spec_cluster_keep{$spec3} >= 2) { #remove genes that are not present in at least pairs in the highly conserved genes 
-							print TMP "$gene ";
-						}
+			if ($k==2){ #minimum two genes >min ortholog number
+				print TMP "----------------\n";
+				for (my $i = 0; $i < @window; $i++) {
+					if (exists $close_homologs{$window[$i]}){
+						print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
 					}
+					else{
+						print TMP "$window[$i]\n";
+					}	
 				}
+				@homolog_spec=();
+				last OUTER;
 			}
-			print TMP "\n";	
-			@homolog_spec2=();
+	
 		}
+		@homolog_spec=();
 	}
-	%spec_cluster_keep =();	
+	
 }
 
 sub method_select_clean {
-	for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
+	OUTER: for (my $j = 0; $j < @window; $j++) { #for each of the genes in window with homologs check if greater than minimum number of homolog species set then print window
 		my $spec1 = (split /_/,$window[$j])[0];
 		push @homolog_spec, $spec1;
 		foreach (@{$close_homologs{$window[$j]}}) {
@@ -411,92 +399,193 @@ sub method_select_clean {
 			push @homolog_spec, $spec;
 		}
 		@uniq_homolog_spec = uniq @homolog_spec;
-		
-		if (scalar @uniq_homolog_spec >= $ortholog_number){
+
+		if (scalar(@uniq_homolog_spec) >= $ortholog_number){
 			if (grep {$_ eq $select_spec} @uniq_homolog_spec){
 				$k++;
-				foreach my $spec2 (@uniq_homolog_spec) {
-					$spec_cluster_keep{$spec2}++; #count species per line with enough homologs
-				}
-			}
-		}
-		@homolog_spec=();	
-	}
-	if ($k>=2){ #minimum two genes >min ortholog number
-	print TMP "----------------\n";
-		for (my $i = 0; $i < @window; $i++) {
-			my $ref_spec = (split /_/,$window[$i])[0];
-			push @homolog_spec2, $ref_spec;
-			print TMP "$window[$i]\t";
-			if (exists $close_homologs{$window[$i]}) {
-				foreach (@{$close_homologs{$window[$i]}}) {
-					my $spec4 = (split /_/,$_)[0];
-					push @homolog_spec2, $spec4;
-				}
-				my @uniq_homolog_spec2 = uniq @homolog_spec2;
-				if (scalar @uniq_homolog_spec2 >= $ortholog_number) { 
-					#print "length good $window[$i]\t@{$close_homologs{$window[$i]}} \t @uniq_homolog_spec2\n";
-					foreach my $gene (@{$close_homologs{$window[$i]}}) {
-						my $spec3 = (split /_/,$gene)[0];
-						#print "spec count $spec_cluster_keep{$spec3} $gene $spec3 k= $k\n";
-						if ($spec_cluster_keep{$spec3} >= 2) { #remove genes that are not present in at least pairs in the highly conserved genes 
-							if (grep {$_ eq $select_spec} @uniq_homolog_spec2) {
-								print TMP "$gene ";
-							}
+				if ($k==2) { #min two genes have selected species and > min ortholog number
+					print TMP "----------------\n";
+					for (my $i = 0; $i < @window; $i++) {
+						if (exists $close_homologs{$window[$i]}){
+							print TMP "$window[$i]\t@{$close_homologs{$window[$i]}}\n";
 						}
+						else{
+							print TMP "$window[$i]\n";
+						}	
 					}
+					@homolog_spec=();
+					$selected="no";
+					last OUTER;
 				}
 			}
-			print TMP "\n";	
-			@homolog_spec2=();
-			$selected="no";
 		}
+		@homolog_spec=();
 	}
-	%spec_cluster_keep =();	
-	
 }
 
 
 
 ####################### Final Clean-up Step #############################
 if (($method eq "select_clean") || ($method eq "default_clean")){
-	my $m=0;
-	my @line_ortho;
-	my $cluster2;
-	
 	close TMP;
-	open (TMPED, "<$header.tmp"); 
-	while (<TMPED>){
-		chomp;
-		$cluster2 .= "$_\n";
-		my @field1 = (split /\t/,$_,2);
-		my $ref_spec2 = (split /_/,$field1[0])[0];
-		push @line_ortho, $ref_spec2 ;
-		if (defined $field1[1]){
-			my @field2 = split (/ /, $field1[1]);
-			foreach my $genes (@field2){
-				my $spec5 = (split /_/,$genes)[0];
-				push @line_ortho, $spec5;
+	system ("cp $header.tmp $header.fulloutput.txt");
+	
+	for (my $z = 0; $z < 3; $z++) { # three rounds of filtering 
+		open (TMPED, "<$header.tmp");
+		my $g=0; 
+		my %ggc;# good genes per cluster
+	
+		while (<TMPED>){
+			chomp;
+			my @field1 = (split /\t/,$_,2);
+			my $ref_spec = (split /_/,$field1[0])[0];
+			push @homolog_spec, $ref_spec;
+			my @field2= split / /, $field1[1];
+			foreach my $item (@field2) {
+				my $spec = (split /_/,$item)[0];
+				push @homolog_spec, $spec;
 			}
-		}
-		my @uniq_line = uniq @line_ortho;
-		
-		if (scalar @uniq_line >= $ortholog_number) { 
-			$m++;
-		}
-		if ($_ eq '----------------') {
-			if ($m >= 2){
-			print OUT "$cluster2";
+			@uniq_homolog_spec = uniq @homolog_spec;
+			if ($method eq "select_clean"){
+				if (grep {$_ eq $select_spec} @uniq_homolog_spec){
+					if (scalar @uniq_homolog_spec >= $ortholog_number){
+						push @{$ggc{$g}}, $field1[0];
+						foreach my $item (@field2){
+							push @{$ggc{$g}}, $item;
+						}
+					}
+				}
 			}
-			$m = 0;
-			$cluster2 = "";
+			if ($method eq "default_clean"){
+				if (scalar @uniq_homolog_spec >= $ortholog_number){
+					push @{$ggc{$g}}, $field1[0];
+					foreach my $item (@field2){
+						push @{$ggc{$g}}, $item;
+					}
+				}
+			}
+			@homolog_spec=();
+			if ($field1[0] eq '----------------'){
+				$g++;
+			}	
 		}
-	@line_ortho = ();
+		close TMPED;
+		if ($z >1 ){
+			system ("rm $header.tmp2");
+		}
+		open (TMPED, "<$header.tmp");
+		open (TP, ">$header.tmp2");
+		print TP "----------------\n";
+		my $h=0;
+		while (<TMPED>){
+			chomp;
+			my @field1 = (split /\t/,$_,2);
+			print TP "$field1[0]\t";
+			my $ref_spec = (split /_/,$field1[0])[0];
+			push @homolog_spec, $ref_spec;
+			my @field2= (split / /, $field1[1]);
+			foreach my $item (@field2) {
+				my $spec = (split /_/,$item)[0];
+				push @homolog_spec, $spec;
+			}
+			@uniq_homolog_spec = uniq @homolog_spec;
+			
+			if ($method eq "select_clean"){
+				if (grep {$_ eq $select_spec} @uniq_homolog_spec){
+					if (scalar @uniq_homolog_spec >= $ortholog_number) { 
+						foreach my $gene (@field2) {
+							foreach my $pair (@{$pairs{$gene}}){
+								if (grep {$_ eq $pair} @{$ggc{$h}}) { #remove genes that are not present in at least pairs in the highly conserved genes 
+									print TP "$gene ";
+								}
+							}
+						}
+					}
+				}
+			}
+			if ($method eq "default_clean") {
+				if (scalar @uniq_homolog_spec >= $ortholog_number) { 
+					foreach my $gene (@field2) {
+						foreach my $pair (@{$pairs{$gene}}){
+							if (grep {$_ eq $pair} @{$ggc{$h}}) { #remove genes that are not present in at least pairs in the highly conserved genes 
+								print TP "$gene ";
+							}
+						}
+					}
+				}
+			}
+			print TP "\n";	
+			@homolog_spec=();
+			if ($field1[0] eq '----------------'){
+				$h++;
+			}
+
+		}
+		close TP;
+	
+		my $m=0;
+		my @line_ortho;
+		my $cluster2="";
+	
+		open (TPED, "<$header.tmp2"); 
+		system ("rm $header.tmp");
+		open (AAA, ">$header.tmp");
+		while (<TPED>){
+			chomp;
+			my @field1 = (split /\t/,$_,2);
+			my $ref_spec2 = (split /_/,$field1[0])[0];
+			push @line_ortho, $ref_spec2 ;
+			if (defined $field1[1]){
+				my @field2 = split (/ /, $field1[1]);
+				foreach my $genes (@field2){
+					my $spec5 = (split /_/,$genes)[0];
+					push @line_ortho, $spec5;
+				}
+			}
+			my @uniq_line = uniq @line_ortho;
+			if ($method eq "select_clean"){
+				if ((grep {$_ eq $select_spec} @uniq_line) &&  (scalar @uniq_line >= $ortholog_number)){
+					$m++;
+					$cluster2 .= "$_\n";
+				}
+				else {
+					$cluster2 .= "$field1[0]\n";
+				}		
+			}
+			if ($method eq "default_clean") {
+				if (scalar @uniq_line >= $ortholog_number) { 
+					$m++;
+					$cluster2 .= "$_\n";
+				}
+				else {
+					$cluster2 .= "$field1[0]\n";
+				}
+			}
+			#print "$cluster2 \n m is $m\n ";
+			if ($field1[0] eq "----------------") {
+				if ($m >= 2){
+					if ($z==2){
+						print OUT "$cluster2";
+					}
+					else{
+						print AAA "$cluster2";
+					}
+				}
+				$m = 0;
+				$cluster2 = "";
+			}
+			@line_ortho = ();
 	
 	
+		}
+		close TPED;
+		close AAA;
+		%ggc=();
+		$g=0;
+		$h=0;
 	}
-	close TMPED;
-	close OUT;
+	#system ("rm $header.tmp");
+	#system ("rm $header.tmp2");
 	
 }
 

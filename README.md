@@ -82,3 +82,9 @@ heatmap output: light red= present, dark red = clustering, white=absent. Species
 --stats
 
 File.stats.txt -Statistics on cluster size, homolog number, number of genes per species clustering. 
+
+---------------------------------------------------------------------------------
+
+Please cite:
+
+Foflonker, F., and Blaby-Hass, C. E., "Co-locality to co-functionality: Eukaryotic gene neighborhoods as a resource for gene function discovery", 2020, submitted.
